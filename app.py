@@ -7,8 +7,11 @@ FILE_PATH = "oriflamme_scores.csv"
 
 # Fonction pour charger le fichier CSV
 def load_data(file_path):
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-        return pd.read_csv(file_path)
+    if os.path.exists(file_path):
+        try:
+            return pd.read_csv(file_path)
+        except pd.errors.EmptyDataError:
+            return pd.DataFrame(columns=['Player', 'Score'])
     else:
         return pd.DataFrame(columns=['Player', 'Score'])
 
