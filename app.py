@@ -5,15 +5,19 @@ import os
 # Chemin du fichier CSV
 FILE_PATH = "oriflamme_scores.csv"
 
-# Vérifier si le fichier existe, sinon le créer
-if not os.path.exists(FILE_PATH):
-    df = pd.DataFrame(columns=['Player', 'Score'])
-    df.to_csv(FILE_PATH, index=False)
-else:
-    df = pd.read_csv(FILE_PATH)
+# Fonction pour charger le fichier CSV
+def load_data(file_path):
+    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+        return pd.read_csv(file_path)
+    else:
+        return pd.DataFrame(columns=['Player', 'Score'])
+
+# Charger les données
+df = load_data(FILE_PATH)
 
 # Fonction pour mettre à jour les scores
 def update_scores(winning_team, losing_team):
+    global df
     for player in winning_team:
         if player in df['Player'].values:
             df.loc[df['Player'] == player, 'Score'] += 1
@@ -43,8 +47,7 @@ if st.button('Ajouter Partie'):
         st.error('Chaque équipe doit avoir exactement 2 joueurs.')
 
 st.header('Scores actuels')
-scores = pd.read_csv(FILE_PATH)
-st.table(scores)
+st.table(df)
 
 # Sauvegarder le fichier CSV mis à jour
-scores.to_csv(FILE_PATH, index=False)
+df.to_csv(FILE_PATH, index=False)
