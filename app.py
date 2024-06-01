@@ -5,6 +5,9 @@ import os
 # Chemin du fichier CSV
 FILE_PATH = "oriflamme_scores.csv"
 
+# Liste des joueurs
+PLAYERS = ['Meimine', 'Hila', 'Hassan', 'Wahed', 'Morabti', 'Khalil']
+
 # Fonction pour charger le fichier CSV
 def load_data(file_path):
     if os.path.exists(file_path):
@@ -39,8 +42,8 @@ def update_scores(winning_team, losing_team):
 st.title('Oriflamme Score Tracker')
 
 st.header('Ajouter une nouvelle partie')
-winning_team = st.text_input('Équipe gagnante (séparée par des virgules)').split(',')
-losing_team = st.text_input('Équipe perdante (séparée par des virgules)').split(',')
+winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
+losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', PLAYERS, max_selections=2)
 
 if st.button('Ajouter Partie'):
     if len(winning_team) == 2 and len(losing_team) == 2:
