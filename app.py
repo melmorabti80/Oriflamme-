@@ -28,13 +28,13 @@ def update_scores(winning_team, losing_team):
         if player in df['Player'].values:
             df.loc[df['Player'] == player, 'Score'] += 1
         else:
-            new_row = {'Player': player, 'Score': 1}
-            df = df.append(new_row, ignore_index=True)
+            new_row = pd.DataFrame({'Player': [player], 'Score': [1]})
+            df = pd.concat([df, new_row], ignore_index=True)
 
     for player in losing_team:
         if player not in df['Player'].values:
-            new_row = {'Player': player, 'Score': 0}
-            df = df.append(new_row, ignore_index=True)
+            new_row = pd.DataFrame({'Player': [player], 'Score': [0]})
+            df = pd.concat([df, new_row], ignore_index=True)
 
     df.to_csv(FILE_PATH, index=False)
 
