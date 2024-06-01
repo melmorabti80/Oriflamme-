@@ -14,9 +14,9 @@ def load_data(file_path):
         try:
             return pd.read_csv(file_path)
         except pd.errors.EmptyDataError:
-            return pd.DataFrame(columns=['Player', 'Score'])
+            return pd.DataFrame(columns=['Player', 'Games_Won', 'Games_Played'])
     else:
-        return pd.DataFrame(columns=['Player', 'Score'])
+        return pd.DataFrame(columns=['Player', 'Games_Won', 'Games_Played'])
 
 # Charger les données
 df = load_data(FILE_PATH)
@@ -26,17 +26,25 @@ def update_scores(winning_team, losing_team):
     global df
     for player in winning_team:
         if player in df['Player'].values:
-            df.loc[df['Player'] == player, 'Score'] += 1
+            df.loc[df['Player'] == player, 'Games_Won'] += 1
+            df.loc[df['Player'] == player, 'Games_Played'] += 1
         else:
-            new_row = pd.DataFrame({'Player': [player], 'Score': [1]})
+            new_row = pd.DataFrame({'Player': [player], 'Games_Won': [1], 'Games_Played': [1]})
             df = pd.concat([df, new_row], ignore_index=True)
 
     for player in losing_team:
-        if player not in df['Player'].values:
-            new_row = pd.DataFrame({'Player': [player], 'Score': [0]})
+        if player in df['Player'].values:
+            df.loc[df['Player'] == player, 'Games_Played'] += 1
+        else:
+            new_row = pd.DataFrame({'Player': [player], 'Games_Won': [0], 'Games_Played': [1]})
             df = pd.concat([df, new_row], ignore_index=True)
 
     df.to_csv(FILE_PATH, index=False)
+
+# Calculer le score en pourcentage
+def calculate_score(df):
+    df['Score'] = (df['Games_Won'] / df['Games_Played'] * 100).round(2)
+    return df
 
 # Interface utilisateur
 st.title('Oriflamme Score Tracker')
@@ -52,8 +60,10 @@ if st.button('Ajouter Partie'):
     else:
         st.error('Chaque équipe doit avoir exactement 2 joueurs.')
 
+# Calculer et afficher les scores actuels
+df = calculate_score(df)
 st.header('Scores actuels')
-st.table(df)
+st.table(df[['Player', 'Games_Won', 'Games_Played', 'Score']])
 
 # Sauvegarder le fichier CSV mis à jour
 df.to_csv(FILE_PATH, index=False)
