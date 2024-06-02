@@ -65,5 +65,14 @@ df = calculate_score(df)
 st.header('Scores actuels')
 st.table(df[['Player', 'Games_Won', 'Games_Played', 'Score']])
 
+# Afficher les entrées avec une option de suppression
+st.header('Supprimer une entrée')
+selected_player = st.selectbox('Sélectionnez un joueur à supprimer', df['Player'].unique())
+
+if st.button('Supprimer Entrée'):
+    df = df[df['Player'] != selected_player]
+    df.to_csv(FILE_PATH, index=False)
+    st.success(f'Entrée pour {selected_player} supprimée avec succès!')
+
 # Sauvegarder le fichier CSV mis à jour
 df.to_csv(FILE_PATH, index=False)
