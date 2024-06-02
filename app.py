@@ -93,6 +93,7 @@ def calculate_scores(df):
 
 # Afficher les scores actuels
 scores_df = calculate_scores(df)
+scores_df = scores_df.sort_values(by='Score', ascending=False)
 st.header('Scores actuels')
 st.table(scores_df)
 
