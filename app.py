@@ -4,9 +4,9 @@ from mysql.connector import Error
 
 # Informations de connexion à la base de données MySQL
 DB_HOST = 'oriflamme.clawkwcigwq6.eu-north-1.rds.amazonaws.com'
-DB_NAME = 'your-db-name'
-DB_USER = 'your-db-username'
-DB_PASSWORD = 'your-db-password'
+DB_NAME = 'oriflamme'
+DB_USER = 'admin'
+DB_PASSWORD = 'Mohamed80'
 
 def test_connection():
     try:
