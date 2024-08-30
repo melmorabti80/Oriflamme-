@@ -70,12 +70,16 @@ def verify_and_create_tables():
         )
         """)
         
-        # Vérifier si la colonne DatePlayed existe, sinon l'ajouter
+        # Vérifier si les colonnes DatePlayed et SeasonID existent, sinon les ajouter
         cursor.execute("SHOW COLUMNS FROM games LIKE 'DatePlayed'")
-        result = cursor.fetchone()
-        if not result:
+        if not cursor.fetchone():
             cursor.execute("ALTER TABLE games ADD COLUMN DatePlayed DATE")
         
+        cursor.execute("SHOW COLUMNS FROM games LIKE 'SeasonID'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE games ADD COLUMN SeasonID INT")
+            cursor.execute("ALTER TABLE games ADD FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)")
+
         # Vérifier et créer la table des parties archivées
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS archived_games (
