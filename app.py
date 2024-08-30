@@ -15,7 +15,6 @@ PLAYERS = ['Meimine', 'Hila', 'Hassan', 'Wahed', 'Morabti', 'Khalil']
 
 # Fonction pour créer la base de données si elle n'existe pas
 def create_database():
-    connection = None
     try:
         connection = mysql.connector.connect(
             host=DB_HOST,
@@ -29,11 +28,9 @@ def create_database():
         connection.close()
     except Error as e:
         st.error(f"Erreur de connexion à la base de données: {e}")
-    return connection
 
-# Fonction pour se connecter à la base de données MySQL et vérifier/créer les tables
+# Fonction pour se connecter à la base de données MySQL
 def create_connection():
-    connection = None
     try:
         connection = mysql.connector.connect(
             host=DB_HOST,
@@ -41,9 +38,18 @@ def create_connection():
             password=DB_PASSWORD,
             database=DB_NAME
         )
+        return connection
+    except Error as e:
+        st.error(f"Erreur de connexion à la base de données: {e}")
+        return None
+
+# Fonction pour vérifier et créer les tables si elles n'existent pas
+def verify_and_create_tables():
+    connection = create_connection()
+    if connection:
         cursor = connection.cursor()
         
-        # Création de la table des saisons
+        # Vérifier et créer la table des saisons
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS seasons (
             SeasonID INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +58,7 @@ def create_connection():
         )
         """)
         
-        # Création de la table des parties actuelles
+        # Vérifier et créer la table des parties actuelles
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS games (
             GameID INT AUTO_INCREMENT PRIMARY KEY,
@@ -64,7 +70,7 @@ def create_connection():
         )
         """)
         
-        # Création de la table des parties archivées
+        # Vérifier et créer la table des parties archivées
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS archived_games (
             GameID INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,44 +84,49 @@ def create_connection():
         
         connection.commit()
         cursor.close()
-    except Error as e:
-        st.error(f"Erreur de connexion à la base de données: {e}")
-    return connection
+        connection.close()
 
 # Fonction pour ajouter une nouvelle partie
 def add_game(winning_team, losing_team):
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
-        
-        # Récupérer la saison actuelle
-        cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
-        current_season = cursor.fetchone()
-        
-        if current_season:
-            season_id = current_season[0]
-            query = """
-            INSERT INTO games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
-            VALUES (%s, %s, %s, %s)
-            """
-            winning_team_str = ', '.join(winning_team)
-            losing_team_str = ', '.join(losing_team)
-            cursor.execute(query, (winning_team_str, losing_team_str, datetime.now().date(), season_id))
-            connection.commit()
-        
-        cursor.close()
-        connection.close()
+        try:
+            # Récupérer la saison actuelle
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
+            
+            if current_season:
+                season_id = current_season[0]
+                query = """
+                INSERT INTO games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+                VALUES (%s, %s, %s, %s)
+                """
+                winning_team_str = ', '.join(winning_team)
+                losing_team_str = ', '.join(losing_team)
+                cursor.execute(query, (winning_team_str, losing_team_str, datetime.now().date(), season_id))
+                connection.commit()
+            
+        except Error as e:
+            st.error(f"Erreur lors de l'ajout de la partie: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
 # Fonction pour supprimer une partie
 def delete_game(game_id):
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
-        query = "DELETE FROM games WHERE GameID = %s"
-        cursor.execute(query, (game_id,))
-        connection.commit()
-        cursor.close()
-        connection.close()
+        try:
+            query = "DELETE FROM games WHERE GameID = %s"
+            cursor.execute(query, (game_id,))
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression de la partie: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
 # Fonction pour charger les données depuis la base de données
 def load_data(season_id=None):
@@ -123,16 +134,20 @@ def load_data(season_id=None):
     df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
     if connection:
         cursor = connection.cursor()
-        if season_id:
-            query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games WHERE SeasonID = %s"
-            cursor.execute(query, (season_id,))
-        else:
-            query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games"
-            cursor.execute(query)
-        records = cursor.fetchall()
-        df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
-        cursor.close()
-        connection.close()
+        try:
+            if season_id:
+                query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games WHERE SeasonID = %s"
+                cursor.execute(query, (season_id,))
+            else:
+                query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games"
+                cursor.execute(query)
+            records = cursor.fetchall()
+            df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
+        except Error as e:
+            st.error(f"Erreur lors du chargement des données: {e}")
+        finally:
+            cursor.close()
+            connection.close()
     return df
 
 # Fonction pour calculer les scores et les coéquipiers
@@ -184,47 +199,56 @@ def archive_season():
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
-        
-        # Récupérer la saison actuelle
-        cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
-        current_season = cursor.fetchone()
-        
-        if current_season:
-            season_id = current_season[0]
+        try:
+            # Récupérer la saison actuelle
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
             
-            # Archiver les parties de la saison actuelle
-            cursor.execute("""
-            INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
-            SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
-            """, (season_id,))
-            
-            # Supprimer les parties archivées de la table actuelle
-            cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
-            connection.commit()
+            if current_season:
+                season_id = current_season[0]
+                
+                # Archiver les parties de la saison actuelle
+                cursor.execute("""
+                INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+                SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
+                """, (season_id,))
+                
+                # Supprimer les parties archivées de la table actuelle
+                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+                connection.commit()
         
-        cursor.close()
-        connection.close()
+        except Error as e:
+            st.error(f"Erreur lors de l'archivage de la saison: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
 # Fonction pour créer une nouvelle saison
 def create_new_season():
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
+        try:
+            # Trouver le numéro de la prochaine saison
+            cursor.execute("SELECT COUNT(*) FROM seasons")
+            count = cursor.fetchone()[0]
+            new_season_name = f"Saison {count + 1}"
+            
+            # Créer la nouvelle saison
+            cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
+            connection.commit()
         
-        # Trouver le numéro de la prochaine saison
-        cursor.execute("SELECT COUNT(*) FROM seasons")
-        count = cursor.fetchone()[0]
-        new_season_name = f"Saison {count + 1}"
-        
-        # Créer la nouvelle saison
-        cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
-        connection.commit()
-        
-        cursor.close()
-        connection.close()
+        except Error as e:
+            st.error(f"Erreur lors de la création de la nouvelle saison: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
 # Créer la base de données si elle n'existe pas
 create_database()
+
+# Vérifier et créer les tables si nécessaire
+verify_and_create_tables()
 
 # Charger les données de la saison actuelle
 df = load_data()
@@ -281,10 +305,14 @@ st.header('Voir les Saisons Archivées')
 connection = create_connection()
 if connection:
     cursor = connection.cursor()
-    cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
-    seasons = cursor.fetchall()
-    cursor.close()
-    connection.close()
+    try:
+        cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
+        seasons = cursor.fetchall()
+    except Error as e:
+        st.error(f"Erreur lors du chargement des saisons: {e}")
+    finally:
+        cursor.close()
+        connection.close()
 
 season_options = {season[1]: season[0] for season in seasons}
 selected_season_name = st.selectbox('Sélectionnez une Saison', list(season_options.keys()))
