@@ -352,7 +352,6 @@ if menu == "Saison en cours":
             create_new_season(season_nickname)
             # Utilisation de st.experimental_set_query_params pour "redémarrer" l'application
             st.experimental_set_query_params(menu="Saison en cours")
-            st.experimental_rerun()
     else:
         st.header('Ajouter une nouvelle partie')
         winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
@@ -390,7 +389,6 @@ if menu == "Saison en cours":
             archive_season()
             st.success('Saison archivée avec succès!')
             st.experimental_set_query_params(menu="Saison en cours")
-            st.experimental_rerun()
 
 elif menu == "Saisons archivées":
     st.title('Saisons archivées')
@@ -448,4 +446,3 @@ elif menu == "Suppression des données":
         delete_season_or_games(option_value)
         st.success(f'{selected_option} supprimé(e) avec succès!')
         st.experimental_set_query_params(menu="Suppression des données")
-        st.experimental_rerun()
