@@ -141,7 +141,7 @@ def delete_game(game_id):
 # Fonction pour charger les données depuis la base de données
 def load_data(season_id=None):
     connection = create_connection()
-    df = pd.DataFrame(columns(['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName']))
+    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
     if connection:
         cursor = connection.cursor()
         try:
