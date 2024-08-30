@@ -261,11 +261,15 @@ def delete_season(season_id=None):
         cursor = connection.cursor()
         try:
             if season_id:
-                # Supprimer une saison spécifique et ses parties
+                # Supprimer d'abord les enregistrements dans archived_games
+                cursor.execute("DELETE FROM archived_games WHERE SeasonID = %s", (season_id,))
+                # Supprimer ensuite les enregistrements dans games
                 cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+                # Supprimer enfin la saison dans seasons
                 cursor.execute("DELETE FROM seasons WHERE SeasonID = %s", (season_id,))
             else:
                 # Supprimer toutes les saisons et leurs parties
+                cursor.execute("DELETE FROM archived_games")
                 cursor.execute("DELETE FROM games")
                 cursor.execute("DELETE FROM seasons")
             connection.commit()
