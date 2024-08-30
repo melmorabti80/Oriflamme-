@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
+from datetime import datetime
 
 # Informations de connexion à la base de données MySQL
 DB_HOST = 'oriflamme.clawkwcigwq6.eu-north-1.rds.amazonaws.com'
@@ -30,7 +31,7 @@ def create_database():
         st.error(f"Erreur de connexion à la base de données: {e}")
     return connection
 
-# Fonction pour se connecter à la base de données MySQL et vérifier/créer la table
+# Fonction pour se connecter à la base de données MySQL et vérifier/créer les tables
 def create_connection():
     connection = None
     try:
@@ -41,13 +42,40 @@ def create_connection():
             database=DB_NAME
         )
         cursor = connection.cursor()
+        
+        # Création de la table des saisons
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS seasons (
+            SeasonID INT AUTO_INCREMENT PRIMARY KEY,
+            SeasonName VARCHAR(255),
+            StartDate DATE
+        )
+        """)
+        
+        # Création de la table des parties actuelles
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS games (
             GameID INT AUTO_INCREMENT PRIMARY KEY,
             Winning_Team VARCHAR(255),
-            Losing_Team VARCHAR(255)
+            Losing_Team VARCHAR(255),
+            DatePlayed DATE,
+            SeasonID INT,
+            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)
         )
         """)
+        
+        # Création de la table des parties archivées
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS archived_games (
+            GameID INT AUTO_INCREMENT PRIMARY KEY,
+            Winning_Team VARCHAR(255),
+            Losing_Team VARCHAR(255),
+            DatePlayed DATE,
+            SeasonID INT,
+            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)
+        )
+        """)
+        
         connection.commit()
         cursor.close()
     except Error as e:
@@ -59,14 +87,22 @@ def add_game(winning_team, losing_team):
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
-        query = """
-        INSERT INTO games (Winning_Team, Losing_Team)
-        VALUES (%s, %s)
-        """
-        winning_team_str = ', '.join(winning_team)
-        losing_team_str = ', '.join(losing_team)
-        cursor.execute(query, (winning_team_str, losing_team_str))
-        connection.commit()
+        
+        # Récupérer la saison actuelle
+        cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+        current_season = cursor.fetchone()
+        
+        if current_season:
+            season_id = current_season[0]
+            query = """
+            INSERT INTO games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+            VALUES (%s, %s, %s, %s)
+            """
+            winning_team_str = ', '.join(winning_team)
+            losing_team_str = ', '.join(losing_team)
+            cursor.execute(query, (winning_team_str, losing_team_str, datetime.now().date(), season_id))
+            connection.commit()
+        
         cursor.close()
         connection.close()
 
@@ -82,15 +118,19 @@ def delete_game(game_id):
         connection.close()
 
 # Fonction pour charger les données depuis la base de données
-def load_data():
+def load_data(season_id=None):
     connection = create_connection()
-    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team'])
+    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
     if connection:
         cursor = connection.cursor()
-        query = "SELECT GameID, Winning_Team, Losing_Team FROM games"
-        cursor.execute(query)
+        if season_id:
+            query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games WHERE SeasonID = %s"
+            cursor.execute(query, (season_id,))
+        else:
+            query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games"
+            cursor.execute(query)
         records = cursor.fetchall()
-        df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team'])
+        df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
         cursor.close()
         connection.close()
     return df
@@ -139,10 +179,54 @@ def calculate_scores(df):
     
     return scores
 
+# Fonction pour archiver une saison
+def archive_season():
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        
+        # Récupérer la saison actuelle
+        cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+        current_season = cursor.fetchone()
+        
+        if current_season:
+            season_id = current_season[0]
+            
+            # Archiver les parties de la saison actuelle
+            cursor.execute("""
+            INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+            SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
+            """, (season_id,))
+            
+            # Supprimer les parties archivées de la table actuelle
+            cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+            connection.commit()
+        
+        cursor.close()
+        connection.close()
+
+# Fonction pour créer une nouvelle saison
+def create_new_season():
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        
+        # Trouver le numéro de la prochaine saison
+        cursor.execute("SELECT COUNT(*) FROM seasons")
+        count = cursor.fetchone()[0]
+        new_season_name = f"Saison {count + 1}"
+        
+        # Créer la nouvelle saison
+        cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
+        connection.commit()
+        
+        cursor.close()
+        connection.close()
+
 # Créer la base de données si elle n'existe pas
 create_database()
 
-# Charger les données
+# Charger les données de la saison actuelle
 df = load_data()
 
 # Interface utilisateur
@@ -179,8 +263,37 @@ if not df.empty:
 else:
     st.write("Aucune partie à supprimer.")
 
+# Archiver la saison en cours et créer une nouvelle saison
+if st.button('Archiver la Saison et Créer une Nouvelle Saison'):
+    archive_season()
+    create_new_season()
+    st.success('Saison archivée et nouvelle saison créée!')
+    df = load_data()  # Recharger les données pour la nouvelle saison
+
 # Afficher les scores actuels
 scores_df = calculate_scores(df)
 scores_df = scores_df.sort_values(by='Score', ascending=False)
 st.header('Scores actuels')
 st.table(scores_df)
+
+# Sélectionner une saison pour voir les parties archivées
+st.header('Voir les Saisons Archivées')
+connection = create_connection()
+if connection:
+    cursor = connection.cursor()
+    cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
+    seasons = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+season_options = {season[1]: season[0] for season in seasons}
+selected_season_name = st.selectbox('Sélectionnez une Saison', list(season_options.keys()))
+
+if selected_season_name:
+    selected_season_id = season_options[selected_season_name]
+    archived_df = load_data(selected_season_id)
+    st.header(f'Parties de {selected_season_name}')
+    if not archived_df.empty:
+        st.table(archived_df)
+    else:
+        st.write("Aucune partie enregistrée pour cette saison.")
