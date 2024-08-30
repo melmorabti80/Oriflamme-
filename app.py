@@ -66,7 +66,7 @@ def verify_and_create_tables():
             Losing_Team VARCHAR(255),
             DatePlayed DATE,
             SeasonID INT,
-            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)
+            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID) ON DELETE CASCADE
         )
         """)
         
@@ -78,7 +78,7 @@ def verify_and_create_tables():
         cursor.execute("SHOW COLUMNS FROM games LIKE 'SeasonID'")
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE games ADD COLUMN SeasonID INT")
-            cursor.execute("ALTER TABLE games ADD FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)")
+            cursor.execute("ALTER TABLE games ADD FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID) ON DELETE CASCADE")
 
         # Vérifier et créer la table des parties archivées
         cursor.execute("""
@@ -88,7 +88,7 @@ def verify_and_create_tables():
             Losing_Team VARCHAR(255),
             DatePlayed DATE,
             SeasonID INT,
-            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID)
+            FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID) ON DELETE CASCADE
         )
         """)
         
@@ -363,6 +363,7 @@ st.table(scores_df)
 # Sélectionner une option pour supprimer
 st.header('Options de Suppression')
 connection = create_connection()
+seasons = []
 if connection:
     cursor = connection.cursor()
     try:
@@ -382,6 +383,25 @@ if st.button('Supprimer'):
     option_value = season_options[selected_option]
     delete_season_or_games(option_value)
     st.success(f'{selected_option} supprimé(e) avec succès!')
+
+    # Recharger la liste des saisons après suppression
+    connection = create_connection()
+    seasons = []
+    if connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
+            seasons = cursor.fetchall()
+        except Error as e:
+            st.error(f"Erreur lors du rechargement des saisons: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+    season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
+    season_options.update({season[1]: season[0] for season in seasons})
+    selected_option = st.selectbox('Saisons disponibles', list(season_options.keys()))
+
     df = load_current_season_data()  # Recharger les données après suppression
 
 # Affichage des parties après suppression
