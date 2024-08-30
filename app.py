@@ -254,6 +254,27 @@ def create_new_season():
             cursor.close()
             connection.close()
 
+# Fonction pour supprimer toutes les saisons ou une saison spécifique
+def delete_season(season_id=None):
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            if season_id:
+                # Supprimer une saison spécifique et ses parties
+                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+                cursor.execute("DELETE FROM seasons WHERE SeasonID = %s", (season_id,))
+            else:
+                # Supprimer toutes les saisons et leurs parties
+                cursor.execute("DELETE FROM games")
+                cursor.execute("DELETE FROM seasons")
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression de la saison: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
 # Créer la base de données si elle n'existe pas
 create_database()
 
@@ -324,14 +345,19 @@ if connection:
         cursor.close()
         connection.close()
 
-season_options = {season[1]: season[0] for season in seasons}
-selected_season_name = st.selectbox('Sélectionnez une Saison', list(season_options.keys()))
+season_options = {'Toutes les saisons': None}
+season_options.update({season[1]: season[0] for season in seasons})
+selected_season_name = st.selectbox('Sélectionnez une Saison pour supprimer', list(season_options.keys()))
 
-if selected_season_name:
+if st.button('Supprimer Saison'):
     selected_season_id = season_options[selected_season_name]
-    archived_df = load_data(selected_season_id)
-    st.header(f'Parties de {selected_season_name}')
-    if not archived_df.empty:
-        st.table(archived_df)
-    else:
-        st.write("Aucune partie enregistrée pour cette saison.")
+    delete_season(selected_season_id)
+    st.success(f'Saison "{selected_season_name}" supprimée avec succès!')
+    df = load_data()  # Recharger les données après suppression
+
+# Affichage des parties après suppression
+if not df.empty:
+    st.header('Parties restantes après suppression')
+    st.table(df)
+else:
+    st.write("Toutes les parties ont été supprimées.")
