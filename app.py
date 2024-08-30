@@ -350,8 +350,9 @@ if menu == "Saison en cours":
         season_nickname = st.text_input("Nom de la saison (optionnel)")
         if st.button("Créer Nouvelle Saison"):
             create_new_season(season_nickname)
-            # Utilisation de st.experimental_set_query_params pour "redémarrer" l'application
+            # Rafraîchir l'état pour afficher le formulaire de saisie des parties
             st.experimental_set_query_params(menu="Saison en cours")
+            st.experimental_rerun()
     else:
         st.header('Ajouter une nouvelle partie')
         winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
