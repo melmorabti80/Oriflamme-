@@ -141,18 +141,23 @@ def delete_game(game_id):
 # Fonction pour charger les données depuis la base de données
 def load_data(season_id=None):
     connection = create_connection()
-    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
+    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
     if connection:
         cursor = connection.cursor()
         try:
+            query = """
+            SELECT g.GameID, g.Winning_Team, g.Losing_Team, g.DatePlayed, s.SeasonName
+            FROM games g
+            JOIN seasons s ON g.SeasonID = s.SeasonID
+            """
             if season_id:
-                query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games WHERE SeasonID = %s"
+                query += " WHERE g.SeasonID = %s"
                 cursor.execute(query, (season_id,))
             else:
-                query = "SELECT GameID, Winning_Team, Losing_Team, DatePlayed FROM games"
                 cursor.execute(query)
+            
             records = cursor.fetchall()
-            df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed'])
+            df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
         except Error as e:
             st.error(f"Erreur lors du chargement des données: {e}")
         finally:
@@ -289,7 +294,23 @@ create_database()
 verify_and_create_tables()
 
 # Charger les données de la saison actuelle
-df = load_data()
+# Charger les données pour la saison actuelle uniquement
+def load_current_season_data():
+    connection = create_connection()
+    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
+    if connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
+            if current_season:
+                df = load_data(current_season[0])
+        except Error as e:
+            st.error(f"Erreur lors du chargement des données de la saison actuelle: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+    return df
 
 # Interface utilisateur
 st.title('Oriflamme Score Tracker')
@@ -304,14 +325,15 @@ if st.button('Ajouter Partie'):
         st.success('Partie ajoutée avec succès!')
     else:
         st.error('Chaque équipe doit avoir exactement 2 joueurs.')
-    df = load_data()  # Recharger les données après l'ajout
+    df = load_current_season_data()  # Recharger les données après l'ajout
 
-# Afficher les parties enregistrées
-st.header('Parties enregistrées')
+# Afficher les parties enregistrées de la saison actuelle
+st.header('Parties enregistrées de la saison actuelle')
+df = load_current_season_data()
 if not df.empty:
     st.table(df)
 else:
-    st.write("Aucune partie enregistrée.")
+    st.write("Aucune partie enregistrée pour la saison actuelle.")
 
 # Suppression d'une partie
 st.header('Supprimer une partie')
@@ -321,7 +343,7 @@ if not df.empty:
     if st.button('Supprimer Partie'):
         delete_game(game_id_to_delete)
         st.success(f'Partie ID {game_id_to_delete} supprimée avec succès!')
-        df = load_data()  # Recharger les données après la suppression
+        df = load_current_season_data()  # Recharger les données après la suppression
 else:
     st.write("Aucune partie à supprimer.")
 
@@ -330,7 +352,7 @@ if st.button('Archiver la Saison et Créer une Nouvelle Saison'):
     archive_season()
     create_new_season()
     st.success('Saison archivée et nouvelle saison créée!')
-    df = load_data()  # Recharger les données pour la nouvelle saison
+    df = load_current_season_data()  # Recharger les données pour la nouvelle saison
 
 # Afficher les scores actuels
 scores_df = calculate_scores(df)
@@ -360,7 +382,7 @@ if st.button('Supprimer'):
     option_value = season_options[selected_option]
     delete_season_or_games(option_value)
     st.success(f'{selected_option} supprimé(e) avec succès!')
-    df = load_data()  # Recharger les données après suppression
+    df = load_current_season_data()  # Recharger les données après suppression
 
 # Affichage des parties après suppression
 if not df.empty:
