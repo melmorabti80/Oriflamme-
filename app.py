@@ -70,6 +70,12 @@ def verify_and_create_tables():
         )
         """)
         
+        # Vérifier si la colonne DatePlayed existe, sinon l'ajouter
+        cursor.execute("SHOW COLUMNS FROM games LIKE 'DatePlayed'")
+        result = cursor.fetchone()
+        if not result:
+            cursor.execute("ALTER TABLE games ADD COLUMN DatePlayed DATE")
+        
         # Vérifier et créer la table des parties archivées
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS archived_games (
