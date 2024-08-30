@@ -141,7 +141,7 @@ def delete_game(game_id):
 # Fonction pour charger les données depuis la base de données
 def load_data(season_id=None):
     connection = create_connection()
-    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
+    df = pd.DataFrame(columns(['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName']))
     if connection:
         cursor = connection.cursor()
         try:
@@ -258,6 +258,8 @@ def create_new_season(season_nickname=""):
         finally:
             cursor.close()
             connection.close()
+        # Rediriger vers le formulaire pour ajouter des parties
+        st.experimental_set_query_params(menu="Saison en cours")
 
 # Fonction pour supprimer toutes les saisons, toutes les parties ou une saison spécifique
 def delete_season_or_games(option):
@@ -294,7 +296,6 @@ create_database()
 verify_and_create_tables()
 
 # Charger les données de la saison actuelle
-# Charger les données pour la saison actuelle uniquement
 def load_current_season_data():
     connection = create_connection()
     df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
@@ -350,9 +351,8 @@ if menu == "Saison en cours":
         season_nickname = st.text_input("Nom de la saison (optionnel)")
         if st.button("Créer Nouvelle Saison"):
             create_new_season(season_nickname)
-            # Rafraîchir l'état pour afficher le formulaire de saisie des parties
+            # Rediriger vers le formulaire pour ajouter des parties
             st.experimental_set_query_params(menu="Saison en cours")
-            st.experimental_rerun()
     else:
         st.header('Ajouter une nouvelle partie')
         winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
