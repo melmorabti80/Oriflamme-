@@ -239,7 +239,7 @@ def archive_season():
             connection.close()
 
 # Fonction pour créer une nouvelle saison
-def create_new_season():
+def create_new_season(season_nickname=""):
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
@@ -247,7 +247,7 @@ def create_new_season():
             # Trouver le numéro de la prochaine saison
             cursor.execute("SELECT COUNT(*) FROM seasons")
             count = cursor.fetchone()[0]
-            new_season_name = f"Saison {count + 1}"
+            new_season_name = f"Saison {count + 1} {season_nickname}"
             
             # Créer la nouvelle saison
             cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
@@ -312,79 +312,117 @@ def load_current_season_data():
             connection.close()
     return df
 
-# Interface utilisateur
-st.title('Oriflamme Score Tracker')
+# Fonction pour afficher les parties archivées
+def load_archived_season_data(season_id):
+    connection = create_connection()
+    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
+    if connection:
+        cursor = connection.cursor()
+        try:
+            query = """
+            SELECT g.GameID, g.Winning_Team, g.Losing_Team, g.DatePlayed, s.SeasonName
+            FROM archived_games g
+            JOIN seasons s ON g.SeasonID = s.SeasonID
+            WHERE g.SeasonID = %s
+            """
+            cursor.execute(query, (season_id,))
+            records = cursor.fetchall()
+            df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
+        except Error as e:
+            st.error(f"Erreur lors du chargement des données: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+    return df
 
-st.header('Ajouter une nouvelle partie')
-winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
-losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', PLAYERS, max_selections=2)
+# Interface utilisateur avec menu latéral
+st.sidebar.title("Menu de Navigation")
+menu = st.sidebar.radio("Choisissez une option", ["Saison en cours", "Saisons archivées", "Suppression des données"])
 
-if st.button('Ajouter Partie'):
-    if len(winning_team) == 2 and len(losing_team) == 2:
-        add_game(winning_team, losing_team)
-        st.success('Partie ajoutée avec succès!')
+if menu == "Saison en cours":
+    st.title('Saison en cours')
+    
+    # Charger les données de la saison actuelle
+    df = load_current_season_data()
+    
+    if df.empty:
+        st.write("Aucune saison active. Créez une nouvelle saison.")
+        season_nickname = st.text_input("Nom de la saison (optionnel)")
+        if st.button("Créer Nouvelle Saison"):
+            create_new_season(season_nickname)
+            st.experimental_rerun()
     else:
-        st.error('Chaque équipe doit avoir exactement 2 joueurs.')
-    df = load_current_season_data()  # Recharger les données après l'ajout
+        st.header('Ajouter une nouvelle partie')
+        winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
+        losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', PLAYERS, max_selections=2)
 
-# Afficher les parties enregistrées de la saison actuelle
-st.header('Parties enregistrées de la saison actuelle')
-df = load_current_season_data()
-if not df.empty:
-    st.table(df)
-else:
-    st.write("Aucune partie enregistrée pour la saison actuelle.")
+        if st.button('Ajouter Partie'):
+            if len(winning_team) == 2 and len(losing_team) == 2:
+                add_game(winning_team, losing_team)
+                st.success('Partie ajoutée avec succès!')
+                df = load_current_season_data()  # Recharger les données après l'ajout
+            else:
+                st.error('Chaque équipe doit avoir exactement 2 joueurs.')
 
-# Suppression d'une partie
-st.header('Supprimer une partie')
-if not df.empty:
-    game_id_to_delete = st.number_input('Entrer l\'ID de la partie à supprimer', min_value=1, max_value=df['GameID'].max(), step=1)
+        # Afficher les parties enregistrées de la saison actuelle
+        st.header('Parties enregistrées de la saison actuelle')
+        if not df.empty:
+            st.table(df)
+        else:
+            st.write("Aucune partie enregistrée pour la saison actuelle.")
 
-    if st.button('Supprimer Partie'):
-        delete_game(game_id_to_delete)
-        st.success(f'Partie ID {game_id_to_delete} supprimée avec succès!')
-        df = load_current_season_data()  # Recharger les données après la suppression
-else:
-    st.write("Aucune partie à supprimer.")
+        # Suppression d'une partie
+        st.header('Supprimer une partie')
+        if not df.empty:
+            game_id_to_delete = st.number_input('Entrer l\'ID de la partie à supprimer', min_value=1, max_value=df['GameID'].max(), step=1)
 
-# Archiver la saison en cours et créer une nouvelle saison
-if st.button('Archiver la Saison et Créer une Nouvelle Saison'):
-    archive_season()
-    create_new_season()
-    st.success('Saison archivée et nouvelle saison créée!')
-    df = load_current_season_data()  # Recharger les données pour la nouvelle saison
+            if st.button('Supprimer Partie'):
+                delete_game(game_id_to_delete)
+                st.success(f'Partie ID {game_id_to_delete} supprimée avec succès!')
+                df = load_current_season_data()  # Recharger les données après la suppression
+        else:
+            st.write("Aucune partie à supprimer.")
 
-# Afficher les scores actuels
-scores_df = calculate_scores(df)
-scores_df = scores_df.sort_values(by='Score', ascending=False)
-st.header('Scores actuels')
-st.table(scores_df)
+        # Archiver la saison en cours
+        if st.button('Archiver la Saison'):
+            archive_season()
+            st.success('Saison archivée avec succès!')
+            st.experimental_rerun()
 
-# Sélectionner une option pour supprimer
-st.header('Options de Suppression')
-connection = create_connection()
-seasons = []
-if connection:
-    cursor = connection.cursor()
-    try:
-        cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
-        seasons = cursor.fetchall()
-    except Error as e:
-        st.error(f"Erreur lors du chargement des saisons: {e}")
-    finally:
-        cursor.close()
-        connection.close()
+elif menu == "Saisons archivées":
+    st.title('Saisons archivées')
+    
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT SeasonID, SeasonName FROM seasons WHERE SeasonID IN (SELECT DISTINCT SeasonID FROM archived_games)")
+            archived_seasons = cursor.fetchall()
+        except Error as e:
+            st.error(f"Erreur lors du chargement des saisons archivées: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
-season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
-season_options.update({season[1]: season[0] for season in seasons})
-selected_option = st.selectbox('Sélectionnez une option pour supprimer', list(season_options.keys()))
+    if archived_seasons:
+        selected_season_name = st.selectbox('Sélectionnez une Saison pour voir les détails', [season[1] for season in archived_seasons])
+        selected_season_id = next(season[0] for season in archived_seasons if season[1] == selected_season_name)
+        df = load_archived_season_data(selected_season_id)
 
-if st.button('Supprimer'):
-    option_value = season_options[selected_option]
-    delete_season_or_games(option_value)
-    st.success(f'{selected_option} supprimé(e) avec succès!')
+        if not df.empty:
+            st.table(df)
+            scores_df = calculate_scores(df)
+            scores_df = scores_df.sort_values(by='Score', ascending=False)
+            st.header('Classement de la saison')
+            st.table(scores_df)
+        else:
+            st.write("Aucune partie enregistrée pour cette saison.")
+    else:
+        st.write("Aucune saison archivée disponible.")
 
-    # Recharger la liste des saisons après suppression
+elif menu == "Suppression des données":
+    st.title('Suppression des données')
+
     connection = create_connection()
     seasons = []
     if connection:
@@ -393,20 +431,17 @@ if st.button('Supprimer'):
             cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
             seasons = cursor.fetchall()
         except Error as e:
-            st.error(f"Erreur lors du rechargement des saisons: {e}")
+            st.error(f"Erreur lors du chargement des saisons: {e}")
         finally:
             cursor.close()
             connection.close()
 
     season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
     season_options.update({season[1]: season[0] for season in seasons})
-    selected_option = st.selectbox('Saisons disponibles', list(season_options.keys()))
+    selected_option = st.selectbox('Sélectionnez une option pour supprimer', list(season_options.keys()))
 
-    df = load_current_season_data()  # Recharger les données après suppression
-
-# Affichage des parties après suppression
-if not df.empty:
-    st.header('Parties restantes après suppression')
-    st.table(df)
-else:
-    st.write("Toutes les parties ont été supprimées.")
+    if st.button('Supprimer'):
+        option_value = season_options[selected_option]
+        delete_season_or_games(option_value)
+        st.success(f'{selected_option} supprimé(e) avec succès!')
+        st.experimental_rerun()
