@@ -1,6 +1,8 @@
 import mysql.connector
 from mysql.connector import Error
+import pandas as pd
 import streamlit as st
+from datetime import datetime
 
 DB_HOST = 'oriflamme.clawkwcigwq6.eu-north-1.rds.amazonaws.com'
 DB_NAME = 'oriflamme'
@@ -109,5 +111,65 @@ def load_data(season_id=None, archived=False):
         connection.close()
     return df
 
-# Autres fonctions (add_game, archive_and_create_new_season) peuvent être ajoutées ici
+# Fonction pour ajouter une nouvelle partie
+def add_game(winning_team, losing_team):
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            # Récupérer la saison actuelle
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
 
+            if current_season:
+                season_id = current_season[0]
+                query = """
+                INSERT INTO games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+                VALUES (%s, %s, %s, %s)
+                """
+                winning_team_str = ', '.join(winning_team)
+                losing_team_str = ', '.join(losing_team)
+                cursor.execute(query, (winning_team_str, losing_team_str, datetime.now().date(), season_id))
+                connection.commit()
+
+        except Error as e:
+            st.error(f"Erreur lors de l'ajout de la partie: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+# Fonction pour archiver la saison actuelle et démarrer une nouvelle saison
+def archive_and_create_new_season():
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            # Récupérer la saison actuelle
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
+
+            if current_season:
+                season_id = current_season[0]
+
+                # Archiver les parties de la saison actuelle
+                cursor.execute("""
+                INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+                SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
+                """, (season_id,))
+
+                # Supprimer les parties archivées de la table actuelle
+                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+
+                # Créer la nouvelle saison
+                cursor.execute("SELECT COUNT(*) FROM seasons")
+                count = cursor.fetchone()[0]
+                new_season_name = f"Saison {count + 1}"
+                cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
+
+                connection.commit()
+
+        except Error as e:
+            st.error(f"Erreur lors de l'archivage de la saison ou de la création de la nouvelle saison: {e}")
+        finally:
+            cursor.close()
+            connection.close()
