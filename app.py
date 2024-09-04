@@ -70,16 +70,6 @@ def verify_and_create_tables():
         )
         """)
         
-        # Vérifier si les colonnes DatePlayed et SeasonID existent, sinon les ajouter
-        cursor.execute("SHOW COLUMNS FROM games LIKE 'DatePlayed'")
-        if not cursor.fetchone():
-            cursor.execute("ALTER TABLE games ADD COLUMN DatePlayed DATE")
-        
-        cursor.execute("SHOW COLUMNS FROM games LIKE 'SeasonID'")
-        if not cursor.fetchone():
-            cursor.execute("ALTER TABLE games ADD COLUMN SeasonID INT")
-            cursor.execute("ALTER TABLE games ADD FOREIGN KEY (SeasonID) REFERENCES seasons(SeasonID) ON DELETE CASCADE")
-
         # Vérifier et créer la table des parties archivées
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS archived_games (
@@ -123,17 +113,38 @@ def add_game(winning_team, losing_team):
             cursor.close()
             connection.close()
 
-# Fonction pour supprimer une partie
-def delete_game(game_id):
+# Fonction pour archiver la saison actuelle et démarrer une nouvelle saison
+def archive_and_create_new_season():
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
         try:
-            query = "DELETE FROM games WHERE GameID = %s"
-            cursor.execute(query, (game_id,))
-            connection.commit()
+            # Récupérer la saison actuelle
+            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+            current_season = cursor.fetchone()
+            
+            if current_season:
+                season_id = current_season[0]
+                
+                # Archiver les parties de la saison actuelle
+                cursor.execute("""
+                INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
+                SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
+                """, (season_id,))
+                
+                # Supprimer les parties archivées de la table actuelle
+                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+                
+                # Créer la nouvelle saison
+                cursor.execute("SELECT COUNT(*) FROM seasons")
+                count = cursor.fetchone()[0]
+                new_season_name = f"Saison {count + 1}"
+                cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
+                
+                connection.commit()
+        
         except Error as e:
-            st.error(f"Erreur lors de la suppression de la partie: {e}")
+            st.error(f"Erreur lors de l'archivage de la saison ou la création de la nouvelle saison: {e}")
         finally:
             cursor.close()
             connection.close()
@@ -165,126 +176,20 @@ def load_data(season_id=None):
             connection.close()
     return df
 
-# Fonction pour calculer les scores et les coéquipiers
-def calculate_scores(df):
-    players_stats = {player: {'Games_Won': 0, 'Games_Played': 0} for player in PLAYERS}
-    teammates_wins = {player: {} for player in PLAYERS}
-    teammates_losses = {player: {} for player in PLAYERS}
-
-    for _, row in df.iterrows():
-        winning_team = row['Winning_Team'].split(', ')
-        losing_team = row['Losing_Team'].split(', ')
-
-        for player in winning_team:
-            players_stats[player]['Games_Won'] += 1
-            players_stats[player]['Games_Played'] += 1
-            teammate = winning_team[1] if winning_team[0] == player else winning_team[0]
-            if teammate not in teammates_wins[player]:
-                teammates_wins[player][teammate] = 0
-            teammates_wins[player][teammate] += 1
-
-        for player in losing_team:
-            players_stats[player]['Games_Played'] += 1
-            teammate = losing_team[1] if losing_team[0] == player else losing_team[0]
-            if teammate not in teammates_losses[player]:
-                teammates_losses[player][teammate] = 0
-            teammates_losses[player][teammate] += 1
-
-    # Trouver le coéquipier avec lequel chaque joueur gagne/perd le plus
-    for player in PLAYERS:
-        players_stats[player]['Best_Teammate_Wins'] = max(teammates_wins[player], key=teammates_wins[player].get, default='N/A')
-        players_stats[player]['Best_Teammate_Wins_Count'] = teammates_wins[player].get(players_stats[player]['Best_Teammate_Wins'], 0)
-        players_stats[player]['Best_Teammate_Losses'] = max(teammates_losses[player], key=teammates_losses[player].get, default='N/A')
-        players_stats[player]['Best_Teammate_Losses_Count'] = teammates_losses[player].get(players_stats[player]['Best_Teammate_Losses'], 0)
-
-    scores = pd.DataFrame([{'Player': player, 
-                            'Games_Won': stats['Games_Won'], 
-                            'Games_Played': stats['Games_Played'], 
-                            'Score': round((stats['Games_Won'] / stats['Games_Played']) * 100, 2) if stats['Games_Played'] > 0 else 0,
-                            'Best_Teammate_Wins': stats['Best_Teammate_Wins'],
-                            'Best_Teammate_Wins_Count': stats['Best_Teammate_Wins_Count'],
-                            'Best_Teammate_Losses': stats['Best_Teammate_Losses'],
-                            'Best_Teammate_Losses_Count': stats['Best_Teammate_Losses_Count']}
-                           for player, stats in players_stats.items()])
-    
-    return scores
-
-# Fonction pour archiver une saison
-def archive_season():
+# Fonction pour vérifier s'il existe une saison active et en créer une si nécessaire
+def ensure_current_season():
     connection = create_connection()
     if connection:
         cursor = connection.cursor()
         try:
-            # Récupérer la saison actuelle
-            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
-            current_season = cursor.fetchone()
-            
-            if current_season:
-                season_id = current_season[0]
-                
-                # Archiver les parties de la saison actuelle
-                cursor.execute("""
-                INSERT INTO archived_games (Winning_Team, Losing_Team, DatePlayed, SeasonID)
-                SELECT Winning_Team, Losing_Team, DatePlayed, SeasonID FROM games WHERE SeasonID = %s
-                """, (season_id,))
-                
-                # Supprimer les parties archivées de la table actuelle
-                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
-                connection.commit()
-        
-        except Error as e:
-            st.error(f"Erreur lors de l'archivage de la saison: {e}")
-        finally:
-            cursor.close()
-            connection.close()
-
-# Fonction pour créer une nouvelle saison
-def create_new_season(season_nickname=""):
-    connection = create_connection()
-    if connection:
-        cursor = connection.cursor()
-        try:
-            # Trouver le numéro de la prochaine saison
             cursor.execute("SELECT COUNT(*) FROM seasons")
             count = cursor.fetchone()[0]
-            new_season_name = f"Saison {count + 1} {season_nickname}"
-            
-            # Créer la nouvelle saison
-            cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", (new_season_name, datetime.now().date()))
-            connection.commit()
-        
+            if count == 0:
+                # Créer la première saison si aucune n'existe
+                cursor.execute("INSERT INTO seasons (SeasonName, StartDate) VALUES (%s, %s)", ("Saison 1", datetime.now().date()))
+                connection.commit()
         except Error as e:
-            st.error(f"Erreur lors de la création de la nouvelle saison: {e}")
-        finally:
-            cursor.close()
-            connection.close()
-        # Rediriger vers le formulaire pour ajouter des parties
-        st.experimental_set_query_params(menu="Saison en cours")
-
-# Fonction pour supprimer toutes les saisons, toutes les parties ou une saison spécifique
-def delete_season_or_games(option):
-    connection = create_connection()
-    if connection:
-        cursor = connection.cursor()
-        try:
-            if option == 'Toutes les saisons':
-                # Supprimer toutes les saisons et leurs parties
-                cursor.execute("DELETE FROM archived_games")
-                cursor.execute("DELETE FROM games")
-                cursor.execute("DELETE FROM seasons")
-            elif option == 'Toutes les parties':
-                # Supprimer toutes les parties sans supprimer les saisons
-                cursor.execute("DELETE FROM archived_games")
-                cursor.execute("DELETE FROM games")
-            else:
-                # Supprimer une saison spécifique et ses parties
-                season_id = option
-                cursor.execute("DELETE FROM archived_games WHERE SeasonID = %s", (season_id,))
-                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
-                cursor.execute("DELETE FROM seasons WHERE SeasonID = %s", (season_id,))
-            connection.commit()
-        except Error as e:
-            st.error(f"Erreur lors de la suppression: {e}")
+            st.error(f"Erreur lors de la vérification/création de la saison actuelle: {e}")
         finally:
             cursor.close()
             connection.close()
@@ -295,46 +200,8 @@ create_database()
 # Vérifier et créer les tables si nécessaire
 verify_and_create_tables()
 
-# Charger les données de la saison actuelle
-def load_current_season_data():
-    connection = create_connection()
-    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
-    if connection:
-        cursor = connection.cursor()
-        try:
-            cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
-            current_season = cursor.fetchone()
-            if current_season:
-                df = load_data(current_season[0])
-        except Error as e:
-            st.error(f"Erreur lors du chargement des données de la saison actuelle: {e}")
-        finally:
-            cursor.close()
-            connection.close()
-    return df
-
-# Fonction pour afficher les parties archivées
-def load_archived_season_data(season_id):
-    connection = create_connection()
-    df = pd.DataFrame(columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
-    if connection:
-        cursor = connection.cursor()
-        try:
-            query = """
-            SELECT g.GameID, g.Winning_Team, g.Losing_Team, g.DatePlayed, s.SeasonName
-            FROM archived_games g
-            JOIN seasons s ON g.SeasonID = s.SeasonID
-            WHERE g.SeasonID = %s
-            """
-            cursor.execute(query, (season_id,))
-            records = cursor.fetchall()
-            df = pd.DataFrame(records, columns=['GameID', 'Winning_Team', 'Losing_Team', 'DatePlayed', 'SeasonName'])
-        except Error as e:
-            st.error(f"Erreur lors du chargement des données: {e}")
-        finally:
-            cursor.close()
-            connection.close()
-    return df
+# Assurer qu'une saison actuelle existe
+ensure_current_season()
 
 # Interface utilisateur avec menu latéral
 st.sidebar.title("Menu de Navigation")
@@ -344,52 +211,38 @@ if menu == "Saison en cours":
     st.title('Saison en cours')
     
     # Charger les données de la saison actuelle
-    df = load_current_season_data()
+    connection = create_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
+    current_season = cursor.fetchone()
+    current_season_id = current_season[0]
     
-    if df.empty:
-        st.write("Aucune saison active. Créez une nouvelle saison.")
-        season_nickname = st.text_input("Nom de la saison (optionnel)")
-        if st.button("Créer Nouvelle Saison"):
-            create_new_season(season_nickname)
-            # Rediriger vers le formulaire pour ajouter des parties
-            st.experimental_set_query_params(menu="Saison en cours")
+    df = load_data(current_season_id)
+    
+    st.header('Ajouter une nouvelle partie')
+    winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
+    losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', PLAYERS, max_selections=2)
+
+    if st.button('Ajouter Partie'):
+        if len(winning_team) == 2 and len(losing_team) == 2:
+            add_game(winning_team, losing_team)
+            st.success('Partie ajoutée avec succès!')
+            df = load_data(current_season_id)  # Recharger les données après l'ajout
+        else:
+            st.error('Chaque équipe doit avoir exactement 2 joueurs.')
+
+    # Afficher les parties enregistrées de la saison actuelle
+    st.header('Parties enregistrées de la saison actuelle')
+    if not df.empty:
+        st.table(df)
     else:
-        st.header('Ajouter une nouvelle partie')
-        winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
-        losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', PLAYERS, max_selections=2)
+        st.write("Aucune partie enregistrée pour la saison actuelle.")
 
-        if st.button('Ajouter Partie'):
-            if len(winning_team) == 2 and len(losing_team) == 2:
-                add_game(winning_team, losing_team)
-                st.success('Partie ajoutée avec succès!')
-                df = load_current_season_data()  # Recharger les données après l'ajout
-            else:
-                st.error('Chaque équipe doit avoir exactement 2 joueurs.')
-
-        # Afficher les parties enregistrées de la saison actuelle
-        st.header('Parties enregistrées de la saison actuelle')
-        if not df.empty:
-            st.table(df)
-        else:
-            st.write("Aucune partie enregistrée pour la saison actuelle.")
-
-        # Suppression d'une partie
-        st.header('Supprimer une partie')
-        if not df.empty:
-            game_id_to_delete = st.number_input('Entrer l\'ID de la partie à supprimer', min_value=1, max_value=df['GameID'].max(), step=1)
-
-            if st.button('Supprimer Partie'):
-                delete_game(game_id_to_delete)
-                st.success(f'Partie ID {game_id_to_delete} supprimée avec succès!')
-                df = load_current_season_data()  # Recharger les données après la suppression
-        else:
-            st.write("Aucune partie à supprimer.")
-
-        # Archiver la saison en cours
-        if st.button('Archiver la Saison'):
-            archive_season()
-            st.success('Saison archivée avec succès!')
-            st.experimental_set_query_params(menu="Saison en cours")
+    # Archiver la saison en cours et démarrer une nouvelle saison
+    if st.button('Archiver la saison et débuter une nouvelle saison'):
+        archive_and_create_new_season()
+        st.success('Saison archivée et nouvelle saison créée avec succès!')
+        df = load_data(current_season_id)
 
 elif menu == "Saisons archivées":
     st.title('Saisons archivées')
@@ -409,14 +262,11 @@ elif menu == "Saisons archivées":
     if archived_seasons:
         selected_season_name = st.selectbox('Sélectionnez une Saison pour voir les détails', [season[1] for season in archived_seasons])
         selected_season_id = next(season[0] for season in archived_seasons if season[1] == selected_season_name)
-        df = load_archived_season_data(selected_season_id)
+        df = load_data(selected_season_id)
 
         if not df.empty:
             st.table(df)
-            scores_df = calculate_scores(df)
-            scores_df = scores_df.sort_values(by='Score', ascending=False)
-            st.header('Classement de la saison')
-            st.table(scores_df)
+            # Vous pouvez également afficher le classement ici si nécessaire
         else:
             st.write("Aucune partie enregistrée pour cette saison.")
     else:
@@ -446,4 +296,3 @@ elif menu == "Suppression des données":
         option_value = season_options[selected_option]
         delete_season_or_games(option_value)
         st.success(f'{selected_option} supprimé(e) avec succès!')
-        st.experimental_set_query_params(menu="Suppression des données")
