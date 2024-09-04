@@ -1,5 +1,5 @@
 import streamlit as st
-from db import load_archived_data
+from db import load_archived_data, create_connection  # Ajout de create_connection
 from game_logic import calculate_scores
 
 def archived_seasons_view():
@@ -29,4 +29,3 @@ def archived_seasons_view():
             st.write("Aucune partie enregistrée pour cette saison.")
     else:
         st.write("Aucune saison archivée disponible.")
-
