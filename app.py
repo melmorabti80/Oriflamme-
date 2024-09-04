@@ -262,6 +262,7 @@ ensure_current_season()
 st.sidebar.title("Menu de Navigation")
 menu = st.sidebar.radio("Choisissez une option", ["Saison en cours", "Saisons archivées", "Suppression des données"])
 
+# Section "Saison en cours"
 if menu == "Saison en cours":
     st.title('Saison en cours')
     
@@ -299,6 +300,7 @@ if menu == "Saison en cours":
         st.success('Saison archivée et nouvelle saison créée avec succès!')
         df = load_data(current_season_id)
 
+# Section "Saisons archivées"
 elif menu == "Saisons archivées":
     st.title('Saisons archivées')
     
@@ -321,12 +323,12 @@ elif menu == "Saisons archivées":
 
         if not df.empty:
             st.table(df)
-            # Vous pouvez également afficher le classement ici si nécessaire
         else:
             st.write("Aucune partie enregistrée pour cette saison.")
     else:
         st.write("Aucune saison archivée disponible.")
 
+# Section "Suppression des données"
 elif menu == "Suppression des données":
     st.title('Suppression des données')
 
@@ -335,6 +337,7 @@ elif menu == "Suppression des données":
     if connection:
         cursor = connection.cursor()
         try:
+            # Récupérer toutes les saisons pour la liste déroulante
             cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
             seasons = cursor.fetchall()
         except Error as e:
@@ -343,11 +346,14 @@ elif menu == "Suppression des données":
             cursor.close()
             connection.close()
 
-    season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
-    season_options.update({season[1]: season[0] for season in seasons})
-    selected_option = st.selectbox('Sélectionnez une option pour supprimer', list(season_options.keys()))
+    if seasons:
+        season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
+        season_options.update({season[1]: season[0] for season in seasons})
+        selected_option = st.selectbox('Sélectionnez une option pour supprimer', list(season_options.keys()))
 
-    if st.button('Supprimer'):
-        option_value = season_options[selected_option]
-        delete_season_or_games(option_value)
-        st.success(f'{selected_option} supprimé(e) avec succès!')
+        if st.button('Supprimer'):
+            option_value = season_options[selected_option]
+            delete_season_or_games(option_value)
+            st.success(f'{selected_option} supprimé(e) avec succès!')
+    else:
+        st.write("Aucune saison disponible pour la suppression.")
