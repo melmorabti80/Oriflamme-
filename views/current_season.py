@@ -1,5 +1,5 @@
 import streamlit as st
-from db import load_data, add_game, archive_and_create_new_season, create_connection  # Ajout de create_connection
+from db import load_data, add_game, archive_and_create_new_season, create_connection
 from game_logic import calculate_scores
 
 PLAYERS = ['Meimine', 'Hila', 'Hassan', 'Wahed', 'Morabti', 'Khalil']
