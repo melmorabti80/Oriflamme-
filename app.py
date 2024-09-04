@@ -221,6 +221,34 @@ def ensure_current_season():
             cursor.close()
             connection.close()
 
+# Fonction pour supprimer toutes les saisons, toutes les parties ou une saison spécifique
+def delete_season_or_games(option):
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            if option == 'Toutes les saisons':
+                # Supprimer toutes les saisons et leurs parties
+                cursor.execute("DELETE FROM archived_games")
+                cursor.execute("DELETE FROM games")
+                cursor.execute("DELETE FROM seasons")
+            elif option == 'Toutes les parties':
+                # Supprimer toutes les parties sans supprimer les saisons
+                cursor.execute("DELETE FROM archived_games")
+                cursor.execute("DELETE FROM games")
+            else:
+                # Supprimer une saison spécifique et ses parties
+                season_id = option
+                cursor.execute("DELETE FROM archived_games WHERE SeasonID = %s", (season_id,))
+                cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+                cursor.execute("DELETE FROM seasons WHERE SeasonID = %s", (season_id,))
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
 # Créer la base de données si elle n'existe pas
 create_database()
 
@@ -298,3 +326,28 @@ elif menu == "Saisons archivées":
             st.write("Aucune partie enregistrée pour cette saison.")
     else:
         st.write("Aucune saison archivée disponible.")
+
+elif menu == "Suppression des données":
+    st.title('Suppression des données')
+
+    connection = create_connection()
+    seasons = []
+    if connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
+            seasons = cursor.fetchall()
+        except Error as e:
+            st.error(f"Erreur lors du chargement des saisons: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+    season_options = {'Toutes les saisons': 'Toutes les saisons', 'Toutes les parties': 'Toutes les parties'}
+    season_options.update({season[1]: season[0] for season in seasons})
+    selected_option = st.selectbox('Sélectionnez une option pour supprimer', list(season_options.keys()))
+
+    if st.button('Supprimer'):
+        option_value = season_options[selected_option]
+        delete_season_or_games(option_value)
+        st.success(f'{selected_option} supprimé(e) avec succès!')
