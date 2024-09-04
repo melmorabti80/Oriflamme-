@@ -111,6 +111,10 @@ def load_data(season_id=None, archived=False):
         connection.close()
     return df
 
+# Fonction pour charger les parties des saisons archivées
+def load_archived_data(season_id=None):
+    return load_data(season_id, archived=True)
+
 # Fonction pour ajouter une nouvelle partie
 def add_game(winning_team, losing_team):
     connection = create_connection()
