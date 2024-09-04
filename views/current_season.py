@@ -1,7 +1,6 @@
 import streamlit as st
-from db import load_data, add_game, archive_and_create_new_season
+from db import load_data, add_game, archive_and_create_new_season, create_connection  # Ajout de create_connection
 from game_logic import calculate_scores
-import pandas as pd
 
 PLAYERS = ['Meimine', 'Hila', 'Hassan', 'Wahed', 'Morabti', 'Khalil']
 
@@ -48,4 +47,3 @@ def current_season_view():
     if st.button('Archiver la saison et démarrer une nouvelle saison'):
         archive_and_create_new_season()
         st.success('Saison archivée et nouvelle saison créée avec succès!')
-
