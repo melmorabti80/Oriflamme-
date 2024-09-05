@@ -212,3 +212,17 @@ def delete_all_archived_seasons():
         finally:
             cursor.close()
             connection.close()
+            
+# Fonction pour supprimer une partie enregistrée
+def delete_game(game_id):
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression de la partie: {e}")
+        finally:
+            cursor.close()
+            connection.close()
