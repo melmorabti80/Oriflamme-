@@ -36,17 +36,21 @@ def current_season_view():
     # Afficher les parties enregistrées
     st.header('Parties enregistrées de la saison actuelle')
     if not df.empty:
-        for idx, row in df.iterrows():
-            st.write(f"Partie {row['GameID']} - {row['Winning_Team']} vs {row['Losing_Team']}")
-
-            # Ajouter un bouton de suppression pour chaque ligne
-            if st.button(f'Supprimer Partie {row["GameID"]}'):
-                delete_game(row['GameID'])
-                st.success(f'Partie {row["GameID"]} supprimée avec succès!')
-                df = load_data(current_season_id)  # Recharger les données après la suppression
-                st.experimental_rerun()  # Redémarrer l'application pour mettre à jour le tableau
+        st.table(df)
     else:
         st.write("Aucune partie enregistrée pour la saison actuelle.")
+
+    # Section pour supprimer une partie à l'aide d'un formulaire
+    st.header('Supprimer une partie')
+    if not df.empty:
+        game_id_to_delete = st.number_input('Entrez l\'ID de la partie à supprimer', min_value=1, max_value=df['GameID'].max(), step=1)
+
+        if st.button('Supprimer Partie'):
+            delete_game(game_id_to_delete)
+            st.success(f'Partie ID {game_id_to_delete} supprimée avec succès!')
+            df = load_data(current_season_id)  # Recharger les données après la suppression
+    else:
+        st.write("Aucune partie disponible pour être supprimée.")
 
     # Afficher les scores
     st.header('Scores actuels')
