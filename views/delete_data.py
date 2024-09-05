@@ -9,7 +9,14 @@ def delete_data_view():
     seasons = []
     if connection:
         cursor = connection.cursor()
-        cursor.execute("SELECT SeasonID, SeasonName FROM seasons")
+        # Sélectionner uniquement les saisons qui ont encore des parties associées
+        cursor.execute("""
+            SELECT s.SeasonID, s.SeasonName
+            FROM seasons s
+            LEFT JOIN games g ON s.SeasonID = g.SeasonID
+            LEFT JOIN archived_games ag ON s.SeasonID = ag.SeasonID
+            WHERE g.SeasonID IS NOT NULL OR ag.SeasonID IS NOT NULL
+        """)
         seasons = cursor.fetchall()
         cursor.close()
         connection.close()
