@@ -177,3 +177,38 @@ def archive_and_create_new_season():
         finally:
             cursor.close()
             connection.close()
+
+# Fonction pour supprimer une saison et ses parties
+def delete_season(season_id):
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            # Supprimer les parties associées à la saison
+            cursor.execute("DELETE FROM games WHERE SeasonID = %s", (season_id,))
+            cursor.execute("DELETE FROM archived_games WHERE SeasonID = %s", (season_id,))
+            # Supprimer la saison
+            cursor.execute("DELETE FROM seasons WHERE SeasonID = %s", (season_id,))
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression de la saison: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+# Fonction pour supprimer toutes les saisons archivées et leurs parties
+def delete_all_archived_seasons():
+    connection = create_connection()
+    if connection:
+        cursor = connection.cursor()
+        try:
+            # Supprimer toutes les parties archivées
+            cursor.execute("DELETE FROM archived_games")
+            # Supprimer toutes les saisons archivées
+            cursor.execute("DELETE FROM seasons WHERE SeasonID IN (SELECT DISTINCT SeasonID FROM archived_games)")
+            connection.commit()
+        except Error as e:
+            st.error(f"Erreur lors de la suppression des saisons archivées: {e}")
+        finally:
+            cursor.close()
+            connection.close()
