@@ -67,21 +67,15 @@ def current_season_view():
     else:
         st.write("Aucun score disponible pour la saison actuelle.")
 
-    # Archiver la saison
-    if st.button('Archiver la saison et démarrer une nouvelle saison'):
-        archive_and_create_new_season()
-        st.success('Saison archivée et nouvelle saison créée avec succès!')
-
     # Statistiques des coéquipiers
     st.header('Statistiques des coéquipiers')
     if not df.empty:
+        # Initialiser les dictionnaires de coéquipiers pour les victoires et les défaites
         for player in PLAYERS:
-            st.subheader(f"Statistiques de {player}")
-            
-            # Coéquipier avec lequel on gagne le plus souvent
             teammates_wins = {}
             teammates_losses = {}
-            
+
+            # Parcourir toutes les parties
             for idx, row in df.iterrows():
                 winning_team = row['Winning_Team'].split(', ')
                 losing_team = row['Losing_Team'].split(', ')
@@ -90,12 +84,14 @@ def current_season_view():
                 if player in winning_team:
                     teammate = [p for p in winning_team if p != player][0]
                     teammates_wins[teammate] = teammates_wins.get(teammate, 0) + 1
-                
+
                 # Perdre avec un coéquipier
                 if player in losing_team:
                     teammate = [p for p in losing_team if p != player][0]
                     teammates_losses[teammate] = teammates_losses.get(teammate, 0) + 1
 
+            st.subheader(f"Statistiques de {player}")
+            
             # Meilleur coéquipier (gagnant)
             if teammates_wins:
                 best_winning_teammate = max(teammates_wins, key=teammates_wins.get)
@@ -109,3 +105,5 @@ def current_season_view():
                 st.write(f"Coéquipier avec lequel {player} perd le plus souvent : {best_losing_teammate} ({teammates_losses[best_losing_teammate]} défaites)")
             else:
                 st.write(f"{player} n'a pas encore perdu avec un coéquipier spécifique.")
+    else:
+        st.write("Pas assez de données pour afficher des statistiques.")
