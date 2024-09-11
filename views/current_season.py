@@ -67,6 +67,40 @@ def current_season_view():
     else:
         st.write("Aucun score disponible pour la saison actuelle.")
 
+    # Statistiques des équipes (victoires/défaites)
+    st.header('Statistiques des équipes')
+    if not df.empty:
+        teams_wins = {}
+        teams_losses = {}
+
+        for idx, row in df.iterrows():
+            winning_team = row['Winning_Team'].split(', ')
+            losing_team = row['Losing_Team'].split(', ')
+
+            # Trier les noms des joueurs pour s'assurer que "Équipe A" est toujours reconnue peu importe l'ordre
+            winning_team_key = tuple(sorted(winning_team))
+            losing_team_key = tuple(sorted(losing_team))
+
+            # Comptabiliser les victoires des équipes
+            teams_wins[winning_team_key] = teams_wins.get(winning_team_key, 0) + 1
+
+            # Comptabiliser les défaites des équipes
+            teams_losses[losing_team_key] = teams_losses.get(losing_team_key, 0) + 1
+
+        # Trouver l'équipe qui gagne le plus souvent
+        if teams_wins:
+            best_winning_team = max(teams_wins, key=teams_wins.get)
+            st.write(f"L'équipe qui gagne le plus souvent : {best_winning_team} ({teams_wins[best_winning_team]} victoires)")
+        else:
+            st.write("Aucune équipe n'a encore gagné.")
+
+        # Trouver l'équipe qui perd le plus souvent
+        if teams_losses:
+            best_losing_team = max(teams_losses, key=teams_losses.get)
+            st.write(f"L'équipe qui perd le plus souvent : {best_losing_team} ({teams_losses[best_losing_team]} défaites)")
+        else:
+            st.write("Aucune équipe n'a encore perdu.")
+
     # Statistiques des coéquipiers et des séries de victoires/défaites
     st.header('Statistiques des coéquipiers et des séries')
     if not df.empty:
