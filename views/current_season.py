@@ -6,21 +6,21 @@ PLAYERS = ['Meimine', 'Hila', 'Hassan', 'Wahed', 'Morabti', 'Khalil']
 
 def current_season_view():
     st.title('Saison en cours')
-    
+
     # Charger les données de la saison actuelle
     connection = create_connection()
     cursor = connection.cursor()
     cursor.execute("SELECT SeasonID FROM seasons ORDER BY SeasonID DESC LIMIT 1")
     current_season = cursor.fetchone()
     current_season_id = current_season[0]
-    
+
     df = load_data(current_season_id)
-    
+
     st.header('Ajouter une nouvelle partie')
-    
+
     # Sélection des joueurs de l'équipe gagnante
     winning_team = st.multiselect('Sélectionnez les joueurs de l\'équipe gagnante', PLAYERS, max_selections=2)
-    
+
     # Filtrer la liste des joueurs perdants en excluant les joueurs de l'équipe gagnante
     remaining_players = [player for player in PLAYERS if player not in winning_team]
     losing_team = st.multiselect('Sélectionnez les joueurs de l\'équipe perdante', remaining_players, max_selections=2)
@@ -67,15 +67,25 @@ def current_season_view():
     else:
         st.write("Aucun score disponible pour la saison actuelle.")
 
-    # Statistiques des coéquipiers
-    st.header('Statistiques des coéquipiers')
+    # Archiver la saison
+    if st.button('Archiver la saison et démarrer une nouvelle saison'):
+        archive_and_create_new_season()
+        st.success('Saison archivée et nouvelle saison créée avec succès!')
+
+    # Statistiques des coéquipiers et adversaires
+    st.header('Statistiques des coéquipiers et adversaires')
     if not df.empty:
-        # Initialiser les dictionnaires de coéquipiers pour les victoires et les défaites
         for player in PLAYERS:
             teammates_wins = {}
             teammates_losses = {}
+            opponents_wins = {}
+            opponents_losses = {}
+            consecutive_wins = 0
+            consecutive_losses = 0
+            max_consecutive_wins = 0
+            max_consecutive_losses = 0
+            last_game_result = None
 
-            # Parcourir toutes les parties
             for idx, row in df.iterrows():
                 winning_team = row['Winning_Team'].split(', ')
                 losing_team = row['Losing_Team'].split(', ')
@@ -85,13 +95,39 @@ def current_season_view():
                     teammate = [p for p in winning_team if p != player][0]
                     teammates_wins[teammate] = teammates_wins.get(teammate, 0) + 1
 
+                    # Gagner contre un adversaire
+                    for opponent in losing_team:
+                        opponents_wins[opponent] = opponents_wins.get(opponent, 0) + 1
+
+                    # Gestion des séries de victoires et défaites
+                    if last_game_result == 'win':
+                        consecutive_wins += 1
+                    else:
+                        consecutive_wins = 1
+                    last_game_result = 'win'
+                    max_consecutive_wins = max(max_consecutive_wins, consecutive_wins)
+                    consecutive_losses = 0
+
                 # Perdre avec un coéquipier
                 if player in losing_team:
                     teammate = [p for p in losing_team if p != player][0]
                     teammates_losses[teammate] = teammates_losses.get(teammate, 0) + 1
 
+                    # Perdre contre un adversaire
+                    for opponent in winning_team:
+                        opponents_losses[opponent] = opponents_losses.get(opponent, 0) + 1
+
+                    # Gestion des séries de défaites
+                    if last_game_result == 'loss':
+                        consecutive_losses += 1
+                    else:
+                        consecutive_losses = 1
+                    last_game_result = 'loss'
+                    max_consecutive_losses = max(max_consecutive_losses, consecutive_losses)
+                    consecutive_wins = 0
+
             st.subheader(f"Statistiques de {player}")
-            
+
             # Meilleur coéquipier (gagnant)
             if teammates_wins:
                 best_winning_teammate = max(teammates_wins, key=teammates_wins.get)
@@ -105,5 +141,19 @@ def current_season_view():
                 st.write(f"Coéquipier avec lequel {player} perd le plus souvent : {best_losing_teammate} ({teammates_losses[best_losing_teammate]} défaites)")
             else:
                 st.write(f"{player} n'a pas encore perdu avec un coéquipier spécifique.")
+
+            # Adversaire contre lequel on gagne le plus souvent
+            if opponents_wins:
+                best_winning_opponent = max(opponents_wins, key=opponents_wins.get)
+                st.write(f"Adversaire avec lequel {player} gagne le plus souvent : {best_winning_opponent} ({opponents_wins[best_winning_opponent]} victoires)")
+
+            # Adversaire contre lequel on perd le plus souvent
+            if opponents_losses:
+                best_losing_opponent = max(opponents_losses, key=opponents_losses.get)
+                st.write(f"Adversaire avec lequel {player} perd le plus souvent : {best_losing_opponent} ({opponents_losses[best_losing_opponent]} défaites)")
+
+            # Séries de victoires et défaites
+            st.write(f"Série de victoires la plus longue : {max_consecutive_wins}")
+            st.write(f"Série de défaites la plus longue : {max_consecutive_losses}")
     else:
         st.write("Pas assez de données pour afficher des statistiques.")
