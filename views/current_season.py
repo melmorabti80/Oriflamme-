@@ -101,6 +101,12 @@ def current_season_view():
         else:
             st.write("Aucune équipe n'a encore perdu.")
 
+# Bouton pour archiver la saison et en démarrer une nouvelle
+if st.button('Archiver la saison et commencer une nouvelle saison'):
+    archive_and_create_new_season()
+    st.success('Saison archivée et nouvelle saison créée avec succès!')
+
+    
     # Statistiques des coéquipiers et des séries de victoires/défaites
     st.header('Statistiques des coéquipiers et des séries')
     if not df.empty:
@@ -178,7 +184,3 @@ def current_season_view():
     else:
         st.write("Pas assez de données pour afficher des statistiques.")
 
-# Bouton pour archiver la saison et en démarrer une nouvelle
-if st.button('Archiver la saison et commencer une nouvelle saison'):
-    archive_and_create_new_season()
-    st.success('Saison archivée et nouvelle saison créée avec succès!')
