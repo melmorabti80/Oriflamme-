@@ -177,3 +177,8 @@ def current_season_view():
             st.write(f"Série de défaites la plus longue : {max_consecutive_losses}")
     else:
         st.write("Pas assez de données pour afficher des statistiques.")
+
+# Bouton pour archiver la saison et en démarrer une nouvelle
+if st.button('Archiver la saison et commencer une nouvelle saison'):
+    archive_and_create_new_season()
+    st.success('Saison archivée et nouvelle saison créée avec succès!')
