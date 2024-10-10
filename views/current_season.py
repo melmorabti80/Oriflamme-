@@ -33,6 +33,14 @@ def current_season_view():
         else:
             st.error('Chaque équipe doit avoir exactement 2 joueurs.')
 
+
+
+
+    # Archiver la saison courante et en démarrer une nouvelle
+    if st.button('Archiver la saison'):
+        archive_and_create_new_season()
+        st.success('Saison archivée et nouvelle saison créée avec succès!')
+    
     # Afficher les parties enregistrées
     st.header('Parties enregistrées de la saison actuelle')
     if not df.empty:
@@ -101,10 +109,7 @@ def current_season_view():
         else:
             st.write("Aucune équipe n'a encore perdu.")
 
-# Bouton pour archiver la saison et en démarrer une nouvelle
-if st.button('Archiver la saison et commencer une nouvelle saison'):
-    archive_and_create_new_season()
-    st.success('Saison archivée et nouvelle saison créée avec succès!')
+
 
     
     # Statistiques des coéquipiers et des séries de victoires/défaites
