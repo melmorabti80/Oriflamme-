@@ -35,13 +35,8 @@ def global_stats_view():
     # Calcul des scores pour toutes les données
     scores = calculate_scores(combined_data)
 
-    # Section 1 : Classement par taux de réussite
-    st.header("Classement par taux de réussite")
-    scores_sorted_by_win_rate = scores.sort_values(by="Score", ascending=False)
-    st.table(scores_sorted_by_win_rate[['Player', 'Games_Played', 'Games_Won', 'Score']])
-
-    # Section 2 : Classement des équipes par victoires et défaites
-    st.header("Classement des équipes par victoires et défaites")
+    # Section : Classement des équipes par victoires, défaites, et score
+    st.header("Classement des équipes par score")
     teams_wins = {}
     teams_losses = {}
 
@@ -55,16 +50,18 @@ def global_stats_view():
         # Comptabiliser les défaites
         teams_losses[losing_team] = teams_losses.get(losing_team, 0) + 1
 
-    # Combiner les statistiques des équipes
+    # Combiner les statistiques des équipes avec un score
     teams_stats = []
     all_teams = set(teams_wins.keys()).union(set(teams_losses.keys()))
     for team in all_teams:
         wins = teams_wins.get(team, 0)
         losses = teams_losses.get(team, 0)
-        teams_stats.append({'Team': ', '.join(team), 'Wins': wins, 'Losses': losses})
+        total_games = wins + losses
+        score = round((wins / total_games) * 100, 2) if total_games > 0 else 0
+        teams_stats.append({'Team': ', '.join(team), 'Wins': wins, 'Losses': losses, 'Score': score})
 
-    teams_df = pd.DataFrame(teams_stats).sort_values(by='Wins', ascending=False)
-    st.table(teams_df)
+    teams_df = pd.DataFrame(teams_stats).sort_values(by='Score', ascending=False)
+    st.table(teams_df[['Team', 'Wins', 'Losses', 'Score']])
 
     # Séries de victoires et de défaites par joueur
     series_stats = {
@@ -94,12 +91,12 @@ def global_stats_view():
                 consecutive_wins = 0
                 consecutive_losses = 0
 
-    # 4. Série de victoires la plus longue
+    # 3. Série de victoires la plus longue
     longest_win_streak_player = max(series_stats, key=lambda x: series_stats[x]['max_wins'])
     longest_win_streak = series_stats[longest_win_streak_player]['max_wins']
     st.subheader(f"Série de victoires la plus longue : {longest_win_streak} ({longest_win_streak_player})")
 
-    # 5. Série de défaites la plus longue
+    # 4. Série de défaites la plus longue
     longest_loss_streak_player = max(series_stats, key=lambda x: series_stats[x]['max_losses'])
     longest_loss_streak = series_stats[longest_loss_streak_player]['max_losses']
     st.subheader(f"Série de défaites la plus longue : {longest_loss_streak} ({longest_loss_streak_player})")
