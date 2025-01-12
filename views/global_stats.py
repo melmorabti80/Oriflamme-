@@ -44,6 +44,16 @@ def global_stats_view():
     top_loser = scores.loc[scores['Losses'].idxmax()]
     st.subheader(f"Joueur avec le plus de défaites : {top_loser['Player']} ({top_loser['Losses']} défaites)")
 
+    # 5. Joueur avec le plus grand rapport matchs gagnés/nombre de parties totales jouées
+    scores['Win_Rate'] = (scores['Games_Won'] / scores['Games_Played']).fillna(0)
+    top_win_rate_player = scores.loc[scores['Win_Rate'].idxmax()]
+    st.subheader(f"Joueur avec le plus grand taux de victoires : {top_win_rate_player['Player']} ({top_win_rate_player['Win_Rate']:.2%})")
+
+    # 6. Joueur avec le plus grand rapport matchs perdus/nombre de parties totales jouées
+    scores['Loss_Rate'] = (scores['Losses'] / scores['Games_Played']).fillna(0)
+    top_loss_rate_player = scores.loc[scores['Loss_Rate'].idxmax()]
+    st.subheader(f"Joueur avec le plus grand taux de défaites : {top_loss_rate_player['Player']} ({top_loss_rate_player['Loss_Rate']:.2%})")
+
     # Statistiques des équipes
     teams_wins = {}
     teams_losses = {}
@@ -58,12 +68,12 @@ def global_stats_view():
         # Comptabiliser les défaites
         teams_losses[losing_team] = teams_losses.get(losing_team, 0) + 1
 
-    # 5. Meilleure équipe gagnante
+    # 7. Meilleure équipe gagnante
     if teams_wins:
         best_winning_team = max(teams_wins, key=teams_wins.get)
         st.subheader(f"L'équipe qui gagne le plus souvent : {best_winning_team} ({teams_wins[best_winning_team]} victoires)")
 
-    # 6. Équipe la plus perdante
+    # 8. Équipe la plus perdante
     if teams_losses:
         most_losing_team = max(teams_losses, key=teams_losses.get)
         st.subheader(f"L'équipe qui perd le plus souvent : {most_losing_team} ({teams_losses[most_losing_team]} défaites)")
@@ -96,12 +106,12 @@ def global_stats_view():
                 consecutive_wins = 0
                 consecutive_losses = 0
 
-    # 7. Joueur avec la série de victoires la plus longue
+    # 9. Joueur avec la série de victoires la plus longue
     longest_win_streak_player = max(series_stats, key=lambda x: series_stats[x]['max_wins'])
     longest_win_streak = series_stats[longest_win_streak_player]['max_wins']
     st.subheader(f"Série de victoires la plus longue : {longest_win_streak} ({longest_win_streak_player})")
 
-    # 8. Joueur avec la série de défaites la plus longue
+    # 10. Joueur avec la série de défaites la plus longue
     longest_loss_streak_player = max(series_stats, key=lambda x: series_stats[x]['max_losses'])
     longest_loss_streak = series_stats[longest_loss_streak_player]['max_losses']
     st.subheader(f"Série de défaites la plus longue : {longest_loss_streak} ({longest_loss_streak_player})")
