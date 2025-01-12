@@ -39,3 +39,5 @@ elif menu == "Saisons archivées":
     archived_seasons_view()
 elif menu == "Suppression de données":
     delete_data_view()
+elif menu == "Statistiques globales":
+    global_stats_view()
