@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from db import create_connection, load_data, load_archived_data
 from game_logic import calculate_scores
 
