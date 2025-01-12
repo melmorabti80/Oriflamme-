@@ -26,8 +26,8 @@ ensure_current_season()
 with st.sidebar:
     menu = option_menu(
         "Menu de Navigation",
-        ["Saison en cours", "Saisons archivées", "Suppression de données"],
-        icons=["calendar", "archive", "trash"],  
+        ["Saison en cours", "Saisons archivées", "Suppression de données", "Statistiques globales"],
+        icons=["calendar", "archive", "trash", "bar-chart"],  # Ajout de l'icône pour Statistiques globales
         menu_icon="cast",
         default_index=0,
     )
