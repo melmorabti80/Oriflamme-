@@ -2,4 +2,5 @@ mysql-connector-python
 streamlit
 pandas
 streamlit-option-menu
+streamlit-drag-and-drop
 matplotlib
