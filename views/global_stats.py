@@ -35,17 +35,12 @@ def global_stats_view():
     # Calcul des scores pour toutes les données
     scores = calculate_scores(combined_data)
 
-    # Section 1 : Classement par nombre de parties jouées
-    st.header("Classement par nombre de parties jouées")
-    scores_sorted_by_games_played = scores.sort_values(by="Games_Played", ascending=False)
-    st.table(scores_sorted_by_games_played[['Player', 'Games_Played', 'Games_Won', 'Score']])
-
-    # Section 2 : Classement par taux de réussite
+    # Section 1 : Classement par taux de réussite
     st.header("Classement par taux de réussite")
     scores_sorted_by_win_rate = scores.sort_values(by="Score", ascending=False)
     st.table(scores_sorted_by_win_rate[['Player', 'Games_Played', 'Games_Won', 'Score']])
 
-    # Section 3 : Classement des équipes par victoires et défaites
+    # Section 2 : Classement des équipes par victoires et défaites
     st.header("Classement des équipes par victoires et défaites")
     teams_wins = {}
     teams_losses = {}
