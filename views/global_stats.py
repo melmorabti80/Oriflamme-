@@ -10,7 +10,7 @@ def global_stats_view():
     archived_data = load_archived_data()
 
     # Combiner les données pour les statistiques globales
-    combined_data = current_data.append(archived_data, ignore_index=True)
+    combined_data = pd.concat([current_data, archived_data], ignore_index=True)
 
     if combined_data.empty:
         st.write("Aucune donnée disponible pour afficher des statistiques globales.")
