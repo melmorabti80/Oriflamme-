@@ -5,6 +5,14 @@ from views.archived_seasons import archived_seasons_view
 from views.delete_data import delete_data_view
 from db import create_database, verify_and_create_tables, ensure_current_season
 
+st.set_page_config(
+    page_title="Oriflamme Tracker",
+    page_icon="🎮",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
 # Créer la base de données si elle n'existe pas
 create_database()
 
