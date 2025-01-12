@@ -3,6 +3,7 @@ from streamlit_option_menu import option_menu
 from views.current_season import current_season_view
 from views.archived_seasons import archived_seasons_view
 from views.delete_data import delete_data_view
+from views.global_stats import global_stats_view
 from db import create_database, verify_and_create_tables, ensure_current_season
 
 st.set_page_config(
