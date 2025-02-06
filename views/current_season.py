@@ -95,11 +95,18 @@ def current_season_view():
 
         # Archiver la saison courante et en démarrer une nouvelle
         st.header("Actions sur la saison")
+        
+        # Ajouter un message de confirmation sous forme de checkbox
         confirm = st.checkbox("Je confirme l'archivage de la saison en cours")
         
-        if st.button('Archiver la saison'):
+        # Toujours afficher le bouton
+        archive_button = st.button("Archiver la saison")
+        
+        # Exécuter l'archivage seulement si la case est cochée
+        if archive_button:
             if confirm:
                 archive_and_create_new_season()
                 st.success('Saison archivée et nouvelle saison créée avec succès!')
             else:
                 st.warning("Veuillez cocher la case pour confirmer l'archivage.")
+
