@@ -93,13 +93,13 @@ def current_season_view():
     else:
         st.write("Aucun score disponible pour la saison actuelle.")
 
-    # Archiver la saison courante et en démarrer une nouvelle
-st.header("Actions sur la saison")
-confirm = st.checkbox("Je confirme l'archivage de la saison en cours")
-
-if st.button('Archiver la saison'):
-    if confirm:
-        archive_and_create_new_season()
-        st.success('Saison archivée et nouvelle saison créée avec succès!')
-    else:
-        st.warning("Veuillez cocher la case pour confirmer l'archivage.")
+        # Archiver la saison courante et en démarrer une nouvelle
+        st.header("Actions sur la saison")
+        confirm = st.checkbox("Je confirme l'archivage de la saison en cours")
+        
+        if st.button('Archiver la saison'):
+            if confirm:
+                archive_and_create_new_season()
+                st.success('Saison archivée et nouvelle saison créée avec succès!')
+            else:
+                st.warning("Veuillez cocher la case pour confirmer l'archivage.")
